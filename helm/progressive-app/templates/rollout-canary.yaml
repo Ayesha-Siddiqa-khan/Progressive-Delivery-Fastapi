@@ -1,0 +1,97 @@
+{{- if eq .Values.rollout.strategy "canary" }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app.name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.app.name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/version: {{ .Values.app.version | quote }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8000"
+    spec:
+      serviceAccountName: {{ default .Values.app.name .Values.serviceAccount.name }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.app.name }}-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.secretKey }}
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - pause:
+            duration: {{ .Values.rollout.canary.pauseDuration | quote }}
+        - setWeight: 25
+        - pause:
+            duration: {{ .Values.rollout.canary.pauseDuration | quote }}
+{{- if .Values.analysis.enabled }}
+        - analysis:
+            templates:
+              - templateName: {{ .Values.app.name }}-analysis
+            args:
+              - name: service-name
+                value: {{ .Values.app.name }}
+              - name: namespace
+                value: {{ .Values.namespace.name | quote }}
+              - name: prometheus-address
+                value: {{ .Values.analysis.prometheusAddress | quote }}
+{{- end }}
+        - setWeight: 50
+        - pause:
+            duration: {{ .Values.rollout.canary.pauseDuration | quote }}
+{{- if .Values.analysis.enabled }}
+        - analysis:
+            templates:
+              - templateName: {{ .Values.app.name }}-analysis
+            args:
+              - name: service-name
+                value: {{ .Values.app.name }}
+              - name: namespace
+                value: {{ .Values.namespace.name | quote }}
+              - name: prometheus-address
+                value: {{ .Values.analysis.prometheusAddress | quote }}
+{{- end }}
+        - setWeight: 100
+{{- end }}

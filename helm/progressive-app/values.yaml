@@ -1,0 +1,83 @@
+replicaCount: 4
+
+image:
+  repository: "placeholder"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+app:
+  name: progressive-app
+  port: 8000
+  version: "v1"
+  releaseMode: "good"
+
+namespace:
+  name: progressive-delivery
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+rollout:
+  strategy: canary
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: {}
+      - setWeight: 25
+      - pause: {}
+      - setWeight: 50
+      - pause: {}
+      - setWeight: 100
+    pauseDuration: "60s"
+  blueGreen:
+    autoPromotionEnabled: false
+    previewReplicaCount: 1
+    scaleDownDelaySeconds: 30
+
+analysis:
+  enabled: true
+  prometheusAddress: "http://prometheus-server.monitoring.svc.cluster.local"
+  interval: "30s"
+  count: 3
+  failureLimit: 1
+  errorRateThreshold: 0.05
+  p95LatencyThresholdSeconds: 0.5
+
+ingress:
+  enabled: true
+  className: nginx
+  host: progressive-app.example.com
+  path: /
+  pathType: Prefix
+  alb:
+    enabled: false
+    scheme: internet-facing
+    targetType: ip
+    healthcheckPath: /health
+  tls: []
+
+database:
+  existingSecret: progressive-app-db
+  secretKey: DATABASE_URL
+  createExampleSecret: false
+  exampleUrl: "postgresql://user:password@rds-endpoint:5432/appdb"
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  labels:
+    release: prometheus
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

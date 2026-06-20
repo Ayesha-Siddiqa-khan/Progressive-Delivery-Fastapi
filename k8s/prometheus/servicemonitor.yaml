@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: progressive-app
+  namespace: progressive-delivery-staging
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: progressive-app
+  namespaceSelector:
+    matchNames:
+      - progressive-delivery-staging
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

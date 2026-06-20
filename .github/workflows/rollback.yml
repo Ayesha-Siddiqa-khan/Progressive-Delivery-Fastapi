@@ -1,0 +1,94 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      namespace:
+        description: "Kubernetes namespace"
+        required: true
+        default: progressive-delivery-staging
+      release_name:
+        description: "Helm release and Argo Rollout name"
+        required: true
+        default: progressive-app
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  rollback:
+    name: Roll back selected environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ secrets.AWS_REGION }}" \
+            --name "${{ secrets.EKS_CLUSTER_NAME }}"
+
+      - name: Install Argo Rollouts kubectl plugin
+        run: |
+          curl -sSL -o kubectl-argo-rollouts https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+          chmod +x kubectl-argo-rollouts
+          sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
+
+      - name: Show rollout history
+        env:
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+        run: kubectl argo rollouts history rollout "${RELEASE_NAME}" -n "${NAMESPACE}" || true
+
+      - name: Abort active rollout if one is running
+        env:
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+        run: kubectl argo rollouts abort "${RELEASE_NAME}" -n "${NAMESPACE}" || true
+
+      - name: Roll back
+        env:
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+        run: |
+          kubectl argo rollouts undo "${RELEASE_NAME}" -n "${NAMESPACE}" \
+            || helm rollback "${RELEASE_NAME}" -n "${NAMESPACE}"
+
+      - name: Show final rollout status
+        env:
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+        run: kubectl argo rollouts status "rollout/${RELEASE_NAME}" -n "${NAMESPACE}" --timeout 10m
+
+      - name: Write rollback summary
+        run: |
+          {
+            echo "## Rollback summary"
+            echo ""
+            echo "- Environment: ${{ inputs.environment }}"
+            echo "- Namespace: ${{ inputs.namespace }}"
+            echo "- Release: ${{ inputs.release_name }}"
+            echo "- Method: Argo Rollouts undo with Helm rollback fallback"
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,0 +1,41 @@
+{{- if .Values.analysis.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Values.app.name }}-analysis
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  args:
+    - name: service-name
+    - name: namespace
+    - name: prometheus-address
+  metrics:
+    - name: error-rate
+      interval: {{ .Values.analysis.interval | quote }}
+      count: {{ .Values.analysis.count }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] <= {{ .Values.analysis.errorRateThreshold }}
+      provider:
+        prometheus:
+          address: "{{ "{{" }}args.prometheus-address{{ "}}" }}"
+          query: |
+            sum(rate(http_errors_total{namespace="{{ "{{" }}args.namespace{{ "}}" }}", service="{{ "{{" }}args.service-name{{ "}}" }}"}[2m]))
+            /
+            clamp_min(sum(rate(http_requests_total{namespace="{{ "{{" }}args.namespace{{ "}}" }}", service="{{ "{{" }}args.service-name{{ "}}" }}"}[2m])), 1)
+    - name: p95-latency
+      interval: {{ .Values.analysis.interval | quote }}
+      count: {{ .Values.analysis.count }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] <= {{ .Values.analysis.p95LatencyThresholdSeconds }}
+      provider:
+        prometheus:
+          address: "{{ "{{" }}args.prometheus-address{{ "}}" }}"
+          query: |
+            histogram_quantile(
+              0.95,
+              sum(rate(http_request_duration_seconds_bucket{namespace="{{ "{{" }}args.namespace{{ "}}" }}", service="{{ "{{" }}args.service-name{{ "}}" }}"}[2m])) by (le)
+            )
+{{- end }}

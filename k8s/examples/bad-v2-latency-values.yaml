@@ -1,0 +1,3 @@
+app:
+  version: v2
+  releaseMode: bad-latency

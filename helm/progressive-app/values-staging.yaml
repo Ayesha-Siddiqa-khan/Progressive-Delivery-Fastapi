@@ -1,0 +1,17 @@
+namespace:
+  name: progressive-delivery-staging
+
+replicaCount: 2
+
+image:
+  tag: "staging-placeholder"
+
+app:
+  version: "v1"
+  releaseMode: "good"
+
+ingress:
+  className: nginx
+  host: staging.progressive-app.example.com
+  alb:
+    enabled: false

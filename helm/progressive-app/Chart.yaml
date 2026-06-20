@@ -1,0 +1,6 @@
+apiVersion: v2
+name: progressive-app
+description: FastAPI progressive delivery demo using Argo Rollouts and Prometheus.
+type: application
+version: 0.1.0
+appVersion: "v1"

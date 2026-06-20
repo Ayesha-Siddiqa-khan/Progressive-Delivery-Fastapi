@@ -1,0 +1,25 @@
+namespace:
+  name: progressive-delivery-production
+
+replicaCount: 4
+
+image:
+  tag: "production-placeholder"
+
+app:
+  version: "v1"
+  releaseMode: "good"
+
+ingress:
+  className: alb
+  host: progressive-app.example.com
+  alb:
+    enabled: true
+
+analysis:
+  count: 5
+  failureLimit: 1
+
+rollout:
+  blueGreen:
+    autoPromotionEnabled: false

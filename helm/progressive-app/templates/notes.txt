@@ -1,0 +1,10 @@
+# Progressive app Helm release notes
+#
+# Rollout:
+#   kubectl argo rollouts get rollout {{ .Values.app.name }} -n {{ .Values.namespace.name }} --watch
+#
+# Promote a paused rollout:
+#   kubectl argo rollouts promote {{ .Values.app.name }} -n {{ .Values.namespace.name }}
+#
+# Abort a bad rollout:
+#   kubectl argo rollouts abort {{ .Values.app.name }} -n {{ .Values.namespace.name }}
