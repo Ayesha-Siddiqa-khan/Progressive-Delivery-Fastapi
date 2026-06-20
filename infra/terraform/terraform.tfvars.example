@@ -1,0 +1,44 @@
+aws_region = "us-east-1"
+
+project_name = "progressive-delivery-fastapi"
+environment  = "dev"
+
+github_repository = "YOUR_GITHUB_USERNAME/progressive-delivery-fastapi"
+github_branch     = "main"
+
+# Add the IAM user or role ARN you use in the AWS Console if you want to view
+# Kubernetes resources from the EKS Console. Do not use the AWS root principal.
+cluster_admin_principal_arns = [
+  # "arn:aws:iam::257536659737:user/YOUR_IAM_USER"
+  # "arn:aws:iam::257536659737:role/YOUR_ADMIN_ROLE"
+]
+
+ecr_repository_name = "progressive-delivery-fastapi"
+
+vpc_cidr = "10.20.0.0/16"
+az_count = 2
+
+enable_nat_gateway = true
+single_nat_gateway = true
+
+eks_cluster_version = "1.32"
+
+node_instance_types = ["t3.small"]
+node_min_size       = 1
+node_desired_size   = 1
+node_max_size       = 2
+
+# Keep false if you already have RDS from another Terraform project.
+create_rds = false
+
+# If create_rds = true, AWS Secrets Manager manages the password.
+db_name                 = "appdb"
+db_username             = "appuser"
+db_instance_class       = "db.t4g.micro"
+db_allocated_storage    = 20
+db_deletion_protection  = false
+db_skip_final_snapshot  = true
+
+tags = {
+  Owner = "YOUR_NAME"
+}

@@ -1,4 +1,4 @@
-.PHONY: install test lint run docker-build docker-run helm-template deploy-staging deploy-production rollout-status smoke-test simulate-traffic
+.PHONY: install test lint run docker-build docker-run helm-template deploy-staging deploy-production rollout-status smoke-test simulate-traffic terraform-init terraform-plan terraform-fmt
 
 IMAGE_NAME ?= progressive-delivery-fastapi
 IMAGE_TAG ?= local
@@ -40,3 +40,12 @@ smoke-test:
 
 simulate-traffic:
 	bash scripts/simulate-traffic.sh $(HOST)
+
+terraform-init:
+	cd infra/terraform && terraform init
+
+terraform-plan:
+	cd infra/terraform && terraform plan
+
+terraform-fmt:
+	cd infra/terraform && terraform fmt -recursive

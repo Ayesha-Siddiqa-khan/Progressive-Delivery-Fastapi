@@ -51,6 +51,18 @@ progressive-delivery-fastapi/
 |   |-- promote-rollout.sh
 |   |-- abort-rollout.sh
 |   `-- rollback.sh
+|-- infra/terraform/
+|   |-- versions.tf
+|   |-- providers.tf
+|   |-- locals.tf
+|   |-- variables.tf
+|   |-- network.tf
+|   |-- eks.tf
+|   |-- ecr.tf
+|   |-- github-oidc.tf
+|   |-- rds.tf
+|   |-- outputs.tf
+|   `-- terraform.tfvars.example
 `-- docs/
     |-- cicd-on-aws.md
     |-- kubernetes-yaml-explanation.md
@@ -59,11 +71,62 @@ progressive-delivery-fastapi/
     `-- rollback-runbook.md
 ```
 
+## Terraform AWS Infrastructure
+
+Terraform is now included in:
+
+```text
+infra/terraform
+```
+
+It creates:
+
+- VPC with public and private subnets.
+- EKS cluster and managed node group.
+- ECR repository for the FastAPI image.
+- GitHub Actions OIDC IAM role.
+- Optional private RDS PostgreSQL instance.
+
+Start here:
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit:
+
+```text
+terraform.tfvars
+```
+
+At minimum, replace:
+
+```hcl
+github_repository = "YOUR_GITHUB_USERNAME/progressive-delivery-fastapi"
+```
+
+Then run:
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+After apply, get the values for GitHub Actions repository variables:
+
+```bash
+terraform output github_actions_variables
+```
+
+Cost warning: this can create paid AWS resources such as NAT Gateway, EKS, EC2 worker nodes, EBS volumes, and optional RDS.
+
 ## AWS EKS CI/CD and Kubernetes Deployment
 
-### Required GitHub Secrets
+### Required GitHub Variables and Secrets
 
-Create these repository secrets before running deployment workflows:
+Create these repository variables before running deployment workflows:
 
 ```text
 AWS_REGION
@@ -73,11 +136,16 @@ EKS_CLUSTER_NAME
 ECR_REPOSITORY
 STAGING_HOST
 PRODUCTION_HOST
+```
+
+Create these repository secrets because they contain database passwords:
+
+```text
 DATABASE_URL_STAGING
 DATABASE_URL_PRODUCTION
 ```
 
-`AWS_ROLE_TO_ASSUME` should be the IAM role ARN created by your Terraform infrastructure for GitHub OIDC. This avoids long-lived AWS access keys in GitHub.
+`AWS_ROLE_TO_ASSUME` is not a password. It is an IAM role ARN, so it can be stored as a GitHub Actions variable. The workflows use `vars.*` for normal config and `secrets.*` only for database URLs.
 
 ### How Staging Deployment Works
 
@@ -321,7 +389,7 @@ helm/progressive-app/templates/secret-example.yaml
 
 - [CI/CD on AWS](docs/cicd-on-aws.md)
 - [Kubernetes YAML Explanation](docs/kubernetes-yaml-explanation.md)
-- [GitHub Secrets](docs/github-secrets.md)
+- [GitHub Variables and Secrets](docs/github-secrets.md)
 - [Manual Production Approval](docs/manual-production-approval.md)
 - [Rollback Runbook](docs/rollback-runbook.md)
 
@@ -361,4 +429,4 @@ DATABASE_URL_STAGING
 DATABASE_URL_PRODUCTION
 ```
 
-AWS EKS, ECR, RDS, DNS, ingress controller, Prometheus, Grafana, Argo Rollouts, and GitHub secrets must be configured before real cloud deployment.
+AWS EKS, ECR, RDS, DNS, ingress controller, Prometheus, Grafana, Argo Rollouts, GitHub variables, and GitHub secrets must be configured before real cloud deployment.

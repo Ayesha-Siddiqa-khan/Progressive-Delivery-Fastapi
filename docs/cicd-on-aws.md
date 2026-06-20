@@ -2,6 +2,14 @@
 
 This project uses GitHub Actions to move a FastAPI app from source code to AWS EKS.
 
+The AWS infrastructure can be created from:
+
+```text
+infra/terraform
+```
+
+That Terraform layer creates EKS, ECR, GitHub OIDC IAM role, VPC networking, and optional RDS.
+
 ## CI workflow
 
 File:
@@ -88,6 +96,6 @@ The rollback workflow:
 
 ## OIDC authentication
 
-The preferred AWS authentication method is GitHub OIDC. The `AWS_ROLE_TO_ASSUME` secret should point to an IAM role created by your Terraform infrastructure. That role should trust GitHub's OIDC provider and allow ECR, EKS, and Kubernetes deployment actions required by this project.
+The preferred AWS authentication method is GitHub OIDC. The `AWS_ROLE_TO_ASSUME` variable should point to an IAM role created by your Terraform infrastructure. That role should trust GitHub's OIDC provider and allow ECR, EKS, and Kubernetes deployment actions required by this project.
 
 Fallback option: if your account does not support OIDC yet, you can modify the `Configure AWS credentials` step to use `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. OIDC is preferred because it avoids long-lived AWS keys in GitHub.

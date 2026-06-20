@@ -7,6 +7,14 @@ venv/
 .env
 .env.*
 !.env.example
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+*.tfplan
 dist/
 build/
 *.egg-info/

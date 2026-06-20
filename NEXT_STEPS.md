@@ -32,9 +32,22 @@ Start Docker Desktop, then run:
 docker build -f docker/Dockerfile -t progressive-delivery-fastapi:local .
 ```
 
-## 3. Create GitHub Secrets
+## 3. Create GitHub Variables and Secrets
 
-Create these in GitHub:
+If you want Terraform to create the AWS infrastructure first, run:
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+terraform output github_actions_variables
+```
+
+Copy the Terraform outputs into GitHub Actions repository variables.
+
+Create these in GitHub Actions `Variables`:
 
 ```text
 AWS_REGION
@@ -44,6 +57,11 @@ EKS_CLUSTER_NAME
 ECR_REPOSITORY
 STAGING_HOST
 PRODUCTION_HOST
+```
+
+Create these in GitHub Actions `Secrets`:
+
+```text
 DATABASE_URL_STAGING
 DATABASE_URL_PRODUCTION
 ```
@@ -53,6 +71,8 @@ GitHub path:
 ```text
 Repository -> Settings -> Secrets and variables -> Actions
 ```
+
+Use the `Variables` tab for normal config. Use the `Secrets` tab for database URLs.
 
 ## 4. Confirm AWS Resources Exist
 
