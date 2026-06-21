@@ -102,12 +102,6 @@ jobs:
           fi
           kubectl get nodes -o wide
 
-      - name: Install Argo Rollouts kubectl plugin
-        run: |
-          curl -sSL -o kubectl-argo-rollouts https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
-          chmod +x kubectl-argo-rollouts
-          sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
-
       - name: Deploy with Helm
         run: |
           helm upgrade --install "${RELEASE_NAME}" ./helm/progressive-app \
@@ -120,7 +114,17 @@ jobs:
             --set image.tag="${GITHUB_SHA}"
 
       - name: Wait for deployment rollout
-        run: kubectl rollout status deployment/progressive-app -n "${NAMESPACE}" --timeout 10m
+        run: |
+          if ! kubectl rollout status deployment/progressive-app -n "${NAMESPACE}" --timeout 10m; then
+            echo "::group::Deployment diagnostics"
+            kubectl get deployment,replicaset,pods,svc,ingress -n "${NAMESPACE}" -o wide || true
+            kubectl describe deployment/progressive-app -n "${NAMESPACE}" || true
+            kubectl describe pods -n "${NAMESPACE}" -l app.kubernetes.io/name=progressive-app || true
+            kubectl get events -n "${NAMESPACE}" --sort-by=.lastTimestamp || true
+            kubectl logs -n "${NAMESPACE}" -l app.kubernetes.io/name=progressive-app --all-containers=true --tail=200 || true
+            echo "::endgroup::"
+            exit 1
+          fi
 
       - name: Run smoke tests
         run: |
