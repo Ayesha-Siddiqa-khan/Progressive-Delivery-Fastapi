@@ -42,7 +42,7 @@ resource "aws_iam_role" "github_actions_oidc" {
 
 resource "aws_iam_policy" "github_actions_ecr_push" {
   name        = "${local.resource_prefix}-github-actions-ecr-push"
-  description = "Least-privilege ECR image push and pull-secret permissions for the GitHub Actions OIDC role."
+  description = "Least-privilege ECR image push permissions for the GitHub Actions OIDC role."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -208,4 +208,3 @@ resource "aws_iam_role_policy_attachment" "database_cache_secrets_read_worker_ec
   role       = aws_iam_role.worker_ec2_ecr_pull.name
   policy_arn = aws_iam_policy.database_cache_secrets_read.arn
 }
-
