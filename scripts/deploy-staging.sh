@@ -5,11 +5,9 @@ NAMESPACE="${NAMESPACE:-progressive-delivery-staging}"
 RELEASE_NAME="${RELEASE_NAME:-progressive-app}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-placeholder}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-STAGING_HOST="${STAGING_HOST:-staging.progressive-app.example.com}"
 
 echo "Deploying ${RELEASE_NAME} to staging namespace ${NAMESPACE}"
 echo "Image: ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
-echo "Host: ${STAGING_HOST}"
 
 if [ -n "${DATABASE_URL:-}" ]; then
   echo "Creating or updating database secret without printing the secret value"
@@ -29,8 +27,7 @@ helm upgrade --install "${RELEASE_NAME}" ./helm/progressive-app \
   -f helm/progressive-app/values-staging.yaml \
   --set namespace.name="${NAMESPACE}" \
   --set image.repository="${IMAGE_REPOSITORY}" \
-  --set image.tag="${IMAGE_TAG}" \
-  --set ingress.host="${STAGING_HOST}"
+  --set image.tag="${IMAGE_TAG}"
 
 echo "Waiting for rollout status"
 kubectl argo rollouts status "rollout/${RELEASE_NAME}" -n "${NAMESPACE}" --timeout 10m

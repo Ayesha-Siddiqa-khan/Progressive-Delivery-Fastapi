@@ -37,7 +37,6 @@ Repository -> Settings -> Secrets and variables -> Actions -> Variables
 | `AWS_ROLE_TO_ASSUME` | IAM role ARN used by GitHub Actions OIDC. | Terraform-created IAM OIDC role |
 | `EKS_CLUSTER_NAME` | EKS cluster name. | Terraform output or AWS Console |
 | `ECR_REPOSITORY` | ECR repository name for the Docker image. | Terraform output or ECR Console |
-| `STAGING_HOST` | Staging domain or placeholder host. | DNS or ingress plan |
 | `PRODUCTION_HOST` | Production domain or placeholder host. | DNS or ingress plan |
 
 These are variables because they are configuration values, not passwords.
@@ -52,7 +51,6 @@ Repository -> Settings -> Secrets and variables -> Actions -> Secrets
 
 | Secret | Meaning | Source |
 | --- | --- | --- |
-| `DATABASE_URL_STAGING` | PostgreSQL connection string for staging. | RDS output or secret manager you manage outside this repo |
 | `DATABASE_URL_PRODUCTION` | PostgreSQL connection string for production. | RDS output or secret manager you manage outside this repo |
 
 ## OIDC role

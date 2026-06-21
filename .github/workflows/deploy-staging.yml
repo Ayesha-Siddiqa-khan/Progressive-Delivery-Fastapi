@@ -35,9 +35,7 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
           AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-          STAGING_HOST: ${{ vars.STAGING_HOST }}
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-          DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
         run: |
           missing=0
 
@@ -56,9 +54,7 @@ jobs:
           check_required "AWS_REGION" "${AWS_REGION}" "Variables"
           check_required "AWS_ACCOUNT_ID" "${AWS_ACCOUNT_ID}" "Variables"
           check_required "ECR_REPOSITORY" "${ECR_REPOSITORY}" "Variables"
-          check_required "STAGING_HOST" "${STAGING_HOST}" "Variables"
           check_required "KUBE_CONFIG_DATA" "${KUBE_CONFIG_DATA}" "Secrets"
-          check_required "DATABASE_URL_STAGING" "${DATABASE_URL_STAGING}" "Secrets"
 
           if [ "${missing}" -ne 0 ]; then
             echo "Configure missing values in: GitHub repository -> Settings -> Secrets and variables -> Actions."
@@ -112,20 +108,6 @@ jobs:
           chmod +x kubectl-argo-rollouts
           sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts
 
-      - name: Create or update database secret
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
-        run: |
-          if [ -z "${DATABASE_URL:-}" ]; then
-            echo "DATABASE_URL_STAGING is not configured."
-            exit 1
-          fi
-          kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create secret generic progressive-app-db \
-            --namespace "${NAMESPACE}" \
-            --from-literal=DATABASE_URL="${DATABASE_URL}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
       - name: Deploy with Helm
         run: |
           helm upgrade --install "${RELEASE_NAME}" ./helm/progressive-app \
@@ -135,16 +117,27 @@ jobs:
             -f helm/progressive-app/values-staging.yaml \
             --set namespace.name="${NAMESPACE}" \
             --set image.repository="${IMAGE_REPOSITORY}" \
-            --set image.tag="${GITHUB_SHA}" \
-            --set database.existingSecret="progressive-app-db" \
-            --set database.secretKey="DATABASE_URL" \
-            --set ingress.host="${{ vars.STAGING_HOST }}"
+            --set image.tag="${GITHUB_SHA}"
 
       - name: Wait for Argo Rollout
         run: kubectl argo rollouts status rollout/progressive-app -n "${NAMESPACE}" --timeout 10m
 
       - name: Run smoke tests
-        run: bash scripts/smoke-test.sh "https://${{ vars.STAGING_HOST }}"
+        run: |
+          kubectl -n "${NAMESPACE}" port-forward "svc/${RELEASE_NAME}" 8080:80 > /tmp/progressive-app-port-forward.log 2>&1 &
+          PORT_FORWARD_PID="$!"
+          trap 'kill "${PORT_FORWARD_PID}"' EXIT
+          for attempt in {1..12}; do
+            if curl -fsS "http://127.0.0.1:8080/health" >/dev/null; then
+              break
+            fi
+            if ! kill -0 "${PORT_FORWARD_PID}" 2>/dev/null; then
+              cat /tmp/progressive-app-port-forward.log
+              exit 1
+            fi
+            sleep 5
+          done
+          bash scripts/smoke-test.sh "http://127.0.0.1:8080"
 
       - name: Write deployment summary
         run: |
@@ -154,6 +147,6 @@ jobs:
             echo "- Namespace: ${NAMESPACE}"
             echo "- Release: ${RELEASE_NAME}"
             echo "- Image: ${IMAGE_URI}"
-            echo "- Host: https://${{ vars.STAGING_HOST }}"
+            echo "- Smoke test: Kubernetes service port-forward"
             echo "- Rollout: progressive-app"
           } >> "${GITHUB_STEP_SUMMARY}"
