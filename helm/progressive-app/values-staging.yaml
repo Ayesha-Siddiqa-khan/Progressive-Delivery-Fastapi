@@ -10,8 +10,17 @@ app:
   version: "v1"
   releaseMode: "good"
 
+rollout:
+  enabled: false
+
+analysis:
+  enabled: false
+
 ingress:
   className: nginx
   host: staging.progressive-app.example.com
   alb:
     enabled: false
+
+serviceMonitor:
+  enabled: false

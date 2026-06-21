@@ -1,6 +1,6 @@
-{{- if and .Values.rollout.enabled (eq .Values.rollout.strategy "bluegreen") }}
-apiVersion: argoproj.io/v1alpha1
-kind: Rollout
+{{- if not .Values.rollout.enabled }}
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Values.app.name }}
   namespace: {{ .Values.namespace.name }}
@@ -57,23 +57,4 @@ spec:
             periodSeconds: 20
           resources:
 {{ toYaml .Values.resources | indent 12 }}
-  strategy:
-    blueGreen:
-      activeService: {{ .Values.app.name }}
-      previewService: {{ .Values.app.name }}-preview
-      autoPromotionEnabled: {{ .Values.rollout.blueGreen.autoPromotionEnabled }}
-      previewReplicaCount: {{ .Values.rollout.blueGreen.previewReplicaCount }}
-      scaleDownDelaySeconds: {{ .Values.rollout.blueGreen.scaleDownDelaySeconds }}
-{{- if .Values.analysis.enabled }}
-      prePromotionAnalysis:
-        templates:
-          - templateName: {{ .Values.app.name }}-analysis
-        args:
-          - name: service-name
-            value: {{ .Values.app.name }}-preview
-          - name: namespace
-            value: {{ .Values.namespace.name | quote }}
-          - name: prometheus-address
-            value: {{ .Values.analysis.prometheusAddress | quote }}
-{{- end }}
 {{- end }}

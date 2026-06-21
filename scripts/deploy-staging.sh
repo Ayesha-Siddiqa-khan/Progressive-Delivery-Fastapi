@@ -29,5 +29,5 @@ helm upgrade --install "${RELEASE_NAME}" ./helm/progressive-app \
   --set image.repository="${IMAGE_REPOSITORY}" \
   --set image.tag="${IMAGE_TAG}"
 
-echo "Waiting for rollout status"
-kubectl argo rollouts status "rollout/${RELEASE_NAME}" -n "${NAMESPACE}" --timeout 10m
+echo "Waiting for deployment rollout status"
+kubectl rollout status "deployment/${RELEASE_NAME}" -n "${NAMESPACE}" --timeout 10m

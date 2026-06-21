@@ -119,8 +119,8 @@ jobs:
             --set image.repository="${IMAGE_REPOSITORY}" \
             --set image.tag="${GITHUB_SHA}"
 
-      - name: Wait for Argo Rollout
-        run: kubectl argo rollouts status rollout/progressive-app -n "${NAMESPACE}" --timeout 10m
+      - name: Wait for deployment rollout
+        run: kubectl rollout status deployment/progressive-app -n "${NAMESPACE}" --timeout 10m
 
       - name: Run smoke tests
         run: |
