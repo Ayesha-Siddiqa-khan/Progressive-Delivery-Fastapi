@@ -29,6 +29,47 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
+      - name: Validate GitHub Actions configuration
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          STAGING_HOST: ${{ vars.STAGING_HOST }}
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+          DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
+        run: |
+          missing=0
+
+          check_required() {
+            local name="$1"
+            local value="$2"
+            local location="$3"
+
+            if [ -z "${value:-}" ]; then
+              echo "::error title=Missing ${location}::${name} is not configured. Add ${name} in GitHub repository ${location}."
+              missing=1
+            fi
+          }
+
+          check_required "AWS_ROLE_TO_ASSUME" "${AWS_ROLE_TO_ASSUME}" "Variables"
+          check_required "AWS_REGION" "${AWS_REGION}" "Variables"
+          check_required "AWS_ACCOUNT_ID" "${AWS_ACCOUNT_ID}" "Variables"
+          check_required "ECR_REPOSITORY" "${ECR_REPOSITORY}" "Variables"
+          check_required "STAGING_HOST" "${STAGING_HOST}" "Variables"
+          check_required "KUBE_CONFIG_DATA" "${KUBE_CONFIG_DATA}" "Secrets"
+          check_required "DATABASE_URL_STAGING" "${DATABASE_URL_STAGING}" "Secrets"
+
+          if [ "${missing}" -ne 0 ]; then
+            echo "Configure missing values in: GitHub repository -> Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          if ! printf '%s' "${KUBE_CONFIG_DATA}" | base64 --decode >/dev/null 2>&1; then
+            echo "::error title=Invalid Secrets::KUBE_CONFIG_DATA must be the base64 kubeconfig generated from the self-managed Kubernetes master, not raw kubeconfig YAML."
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -48,11 +89,22 @@ jobs:
           docker build -f docker/Dockerfile -t "${IMAGE_URI}" .
           docker push "${IMAGE_URI}"
 
-      - name: Update kubeconfig
+      - name: Configure kubeconfig for self-managed Kubernetes
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         run: |
-          aws eks update-kubeconfig \
-            --region "${{ vars.AWS_REGION }}" \
-            --name "${{ vars.EKS_CLUSTER_NAME }}"
+          mkdir -p "${HOME}/.kube"
+          printf '%s' "${KUBE_CONFIG_DATA}" | base64 --decode > "${HOME}/.kube/config"
+          chmod 600 "${HOME}/.kube/config"
+          kubectl config current-context
+
+      - name: Verify Kubernetes API access
+        run: |
+          if ! kubectl cluster-info; then
+            echo "::error title=Kubernetes API unreachable::The kubeconfig was decoded, but GitHub Actions cannot reach the self-managed Kubernetes API. Check that KUBE_CONFIG_DATA uses the public API endpoint, or run this workflow on a self-hosted runner inside the VPC."
+            exit 1
+          fi
+          kubectl get nodes -o wide
 
       - name: Install Argo Rollouts kubectl plugin
         run: |
