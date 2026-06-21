@@ -26,6 +26,10 @@ spec:
         prometheus.io/port: "8000"
     spec:
       serviceAccountName: {{ default .Values.app.name .Values.serviceAccount.name }}
+{{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml . | indent 8 }}
+{{- end }}
       containers:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

@@ -102,6 +102,19 @@ jobs:
           fi
           kubectl get nodes -o wide
 
+      - name: Create ECR image pull secret
+        run: |
+          REGISTRY="${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          ECR_PASSWORD="$(aws ecr get-login-password --region "${{ vars.AWS_REGION }}")"
+          kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret docker-registry ecr-pull-secret \
+            --namespace "${NAMESPACE}" \
+            --docker-server="${REGISTRY}" \
+            --docker-username="AWS" \
+            --docker-password="${ECR_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          unset ECR_PASSWORD
+
       - name: Deploy with Helm
         run: |
           helm upgrade --install "${RELEASE_NAME}" ./helm/progressive-app \

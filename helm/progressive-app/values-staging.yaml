@@ -6,6 +6,9 @@ replicaCount: 2
 image:
   tag: "staging-placeholder"
 
+imagePullSecrets:
+  - name: ecr-pull-secret
+
 app:
   version: "v1"
   releaseMode: "good"
