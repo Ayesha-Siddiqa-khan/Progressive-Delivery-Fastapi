@@ -1,6 +1,8 @@
 # IAM / Access Management
 
 # Generated CI/CD role: GitHub Actions OIDC to push Docker images to ECR.
+# The staging workflow also creates a short-lived image pull secret from this
+# role, so it needs the ECR read action used by Kubernetes image pulls.
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = [var.github_oidc_audience]
@@ -40,7 +42,7 @@ resource "aws_iam_role" "github_actions_oidc" {
 
 resource "aws_iam_policy" "github_actions_ecr_push" {
   name        = "${local.resource_prefix}-github-actions-ecr-push"
-  description = "Least-privilege ECR image push permissions for the GitHub Actions OIDC role."
+  description = "Least-privilege ECR image push and pull-secret permissions for the GitHub Actions OIDC role."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -54,7 +56,7 @@ resource "aws_iam_policy" "github_actions_ecr_push" {
       {
         Sid      = "AllowPushToSelectedRepository"
         Effect   = "Allow"
-        Action   = ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart", "ecr:BatchGetImage"]
+        Action   = ["ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:GetDownloadUrlForLayer", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart", "ecr:BatchGetImage"]
         Resource = local.ecr_repository_arn
       }
     ]
@@ -206,5 +208,4 @@ resource "aws_iam_role_policy_attachment" "database_cache_secrets_read_worker_ec
   role       = aws_iam_role.worker_ec2_ecr_pull.name
   policy_arn = aws_iam_policy.database_cache_secrets_read.arn
 }
-
 
